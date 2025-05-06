@@ -1,42 +1,41 @@
+import logging
 import os
 import uuid
 import ffmpeg
 import requests
 from pathlib import Path
 from pytubefix import YouTube
+from app.utils.logger import get_logger
 from app.utils.database import Database
 from minio.deleteobjects import DeleteObject
 from app.models import Video, YouTubeChannelSource
 from app.worker.youtube.channel import YoutubeChannel
 from app.utils.minioStorage import MinioStorage, BUCKET
+from app.worker.proxy.proxy_manager import ProxyManager
 
 database = Database().get_session()
 minio_client = MinioStorage().get_client()
-user_name = "h5uut69c1u430j"
+proxy_manager = ProxyManager()
+logger = get_logger('worker_logger', logging.DEBUG)
 
-proxy = {
-    "http": "14a7faff64f35:2415201c48@196.44.120.138:44444",
-    "https": "14a7faff64f35:2415201c48@196.44.120.138:44444",
-}
 
 class YoutubeDownloader():
     def __init__(self):
         self.__temp_directory__ = "./temp/"
-        pass
 
     def download(self, video_url: str):
         filename = uuid.uuid4()
-        print(filename)
         try:
-            youtube_video = YouTube(video_url, proxies=proxy)
+            youtube_video = YouTube(video_url, proxies=proxy_manager.get_next_proxy())
 
             if self.is_video_present_in_db(youtube_video):
-                print("already present")
-                return "already present"
+                logger.info(f"Video ({youtube_video.title}) already exists")
+                return
 
-            print(f"Download {youtube_video.title}")
+            logger.debug(f"Start download of video: {youtube_video.video_id} - {youtube_video.title}")
 
             self.download_thumbnail(youtube_video.video_id, youtube_video.thumbnail_url)
+            logger.debug(f"Thumbnail downloaded of {youtube_video.video_id} - {youtube_video.title}")
 
             video_itag = self.get_video_itag(youtube_video)
             audio_itag = self.get_audio_itag(youtube_video)
@@ -47,19 +46,24 @@ class YoutubeDownloader():
             audio_file = [f for f in os.listdir(self.__temp_directory__) if f.startswith(f"{youtube_video.video_id}_audio_")][0]
             self.convert_m4a_to_mp3(f"{self.__temp_directory__}{audio_file}", f"{self.__temp_directory__}{youtube_video.video_id}_final_audio.mp3")
 
+            logger.debug(f"MP3 created of {youtube_video.video_id} - {youtube_video.title}")
+
             self.combine_audio_video(youtube_video.video_id)
 
+            logger.debug(f"Final Video created of {youtube_video.video_id} - {youtube_video.title}")
             
             self.upload_video_and_audio(youtube_video.video_id, filename)
             self.write_in_database(youtube_video, f"{filename}.mp4", f"{filename}.mp3", f"{filename}.jpg")
+
+            logger.info(f"Video {youtube_video.video_id} - {youtube_video.title} successfully downloaded")
         
         except Exception as e:
-            print("Failed: ", e)
+            logger.error(f"Error during download of video ({youtube_video.title})", exc_info=True)
             self.clean_up_on_error(str(filename))
         finally:
             self.clean_up(youtube_video.video_id)
 
-        print("finished")
+        
 
     def is_video_present_in_db(self, video: YouTube) -> bool:
         db_video = database.query(Video).where(Video.external_id==video.video_id).first()
@@ -76,7 +80,7 @@ class YoutubeDownloader():
             if stream:
                 return stream.itag
 
-        print("No matching stream found.")
+        logger.warning(f"No matching video stream found. ({video.title})")
         return None
 
     def get_audio_itag(self, video: YouTube):
@@ -88,7 +92,7 @@ class YoutubeDownloader():
             if stream:
                 return stream.itag
 
-        print("No matching stream found.")
+        logger.warning(f"No matching audio stream found. ({video.title})")
         return None
 
     def convert_m4a_to_mp3(self, input_file: str, output_file: str):
@@ -129,7 +133,7 @@ class YoutubeDownloader():
             with open(f'{self.__temp_directory__}{video_id}_thumbnail.jpg', 'wb') as file:
                 file.write(response.content)
         else:
-            print("Failed")
+            logger.error(f"Failed to download thumbnail (Video Id: {video_id})")
 
     def write_in_database(self, video: YouTube, video_file_name: str, audio_file_name: str, thumbnail_file_name: str):
         channel = database.query(YouTubeChannelSource).where(YouTubeChannelSource.channel_id==video.channel_id).first()
@@ -177,7 +181,7 @@ class YoutubeDownloader():
                 list(minio_client.remove_objects(BUCKET, delete_object_list))
 
         except Exception as e:
-            print("S3Error:", e)
+            logger.error(f"Error during Minio CleanUp (Prefix: {filename_prefix})")
 
 
     def clean_up(self, video_id: str):
@@ -188,4 +192,4 @@ class YoutubeDownloader():
                     os.remove(file_path)
 
 y = YoutubeDownloader()
-y.download('https://www.youtube.com/watch?v=GGrSlfZ4T0U')
+y.download('https://www.youtube.com/watch?v=Dlsa9EBKDGI')

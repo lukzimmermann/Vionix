@@ -50,11 +50,3 @@ class ProxyManager():
             return ProxyItem(elements[0], elements[1], None, None)
         else:
             raise ValueError(f"Invalid proxy line format: {line}")
-
-
-proxy_manager1 = ProxyManager()
-proxy_manager2 = ProxyManager()
-
-for _ in range(200):
-    print(proxy_manager1.get_next_proxy())
-    print(proxy_manager2.get_next_proxy())

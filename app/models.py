@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Float, Integer, String, DateTime, Enum, ForeignKey, Text, BigInteger, JSON
+    Column, Float, Integer, String, DateTime, Enum, ForeignKey, Text, BigInteger
 )
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship, declarative_base
@@ -13,6 +13,12 @@ class SourceType(enum.Enum):
     YOUTUBE_CHANNEL = "youtube_channel"
     YOUTUBE_PLAYLIST = "youtube_playlist"
     MANUAL_UPLOAD = "manual_upload"
+
+class LogLevel(enum.Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
 
 # --- Base Source (abstract) ---
 class Source(Base):
@@ -111,3 +117,27 @@ class Chunk(Base):
     embedding = Column(Vector(768), nullable=False)
 
     video = relationship("Video", back_populates="chunks")
+
+# --- WorkerLogs Table ---
+class WorkerLog(Base):
+    __tablename__ = 'worker_logs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    level = Column(Enum(LogLevel, name="log_level_enum"), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+
+    logger_name = Column(String(255), nullable=True)
+    filename = Column(String(255), nullable=True)
+    func_name = Column(String(255), nullable=True)
+    line_no = Column(Integer, nullable=True)
+    process = Column(BigInteger, nullable=True)
+    thread = Column(BigInteger, nullable=True)
+    exception = Column(Text, nullable=True)
+    pathname = Column(String(1024), nullable=True)
+    module = Column(String(255), nullable=True)
+
+    def __repr__(self):
+        return (f"<WorkerLog(id={self.id}, level={self.level.name}, "
+                f"logger={self.logger_name}, created_at={self.created_at})>")
