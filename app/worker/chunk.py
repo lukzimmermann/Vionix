@@ -45,15 +45,13 @@ class ChunkCreator():
         chunks = []
         chunks.append(self.create_new_chunk(video.id, 0))
         chunks.append(self.create_new_chunk(video.id, None))
-        last_end_time = 0
         
         for segment in video.transcription['segments']:
-            
-            segment_tokens = self.tokenizer.encode(segment['text'], add_special_tokens=False)
-            current_tokens = self.tokenizer.encode(chunks[-2].text, add_special_tokens=False)
-            tokens = current_tokens + segment_tokens
+            text = chunks[-2].text + segment['text']
+            tokens = self.tokenizer.encode(text, add_special_tokens=False)
 
-            last_end_time = segment['end']
+            chunks[-2].end = segment['end']
+            chunks[-1].end = segment['end']
 
             if len(tokens) > size - overlap:
                 if len(chunks[-1].text) == 0:
@@ -62,25 +60,21 @@ class ChunkCreator():
 
             if len(tokens) < size:
                 chunks[-2].text += segment['text']
+                chunks[-2].embedding = self.__model.encode(chunks[-2].text, convert_to_tensor=False, normalize_embeddings=True)
             else:
-                chunks[-2].end = segment['end']
                 chunks.append(self.create_new_chunk(video.id, None))
 
-        if chunks[-1].start == None:
-            chunks = chunks[:-1]
+        if chunks[-1].start == None or chunks[-1].end == chunks[-1].end:
+            chunks.pop()
 
-        chunks[-1].end = last_end_time
+        if (len(self.tokenizer.encode(chunks[-1].text, add_special_tokens=False)) + len(self.tokenizer.encode(chunks[-2].text, add_special_tokens=False))) < size:
+            chunks[-2].text += chunks[-1].text
+            chunks.pop()
 
-        for chunk in chunks:
-            self.print_chunk(chunk)
+        #if chunks[-1].end == chunks[-1].end:
+        #    chunks.pop()
 
-        print("Video length:     ", video.length)
-        print("Number of chunks: ", len(chunks))
-
-
-    def print_chunk(self, chunk: Chunk):
-        tokens = self.tokenizer.encode(chunk.text, add_special_tokens=False)
-        print(f"{len(tokens)} @ {chunk.start}-{chunk.end}")
+        return chunks
     
     def create_new_chunk(self, video_id, start):
         chunk = Chunk()

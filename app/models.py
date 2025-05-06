@@ -35,6 +35,7 @@ class YouTubeChannelSource(Source):
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
     thumbnail_url = Column(String, nullable=False)
+    thumbnail_path = Column(String, nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': SourceType.YOUTUBE_CHANNEL
@@ -48,6 +49,7 @@ class YouTubePlaylistSource(Source):
     title = Column(String, nullable=False)
     owner = Column(String, nullable=False)
     thumbnail_url = Column(String, nullable=False)
+    thumbnail_path  = Column(String, nullable=True)
 
     __mapper_args__ = {
         'polymorphic_identity': SourceType.YOUTUBE_PLAYLIST
@@ -74,6 +76,7 @@ class Video(Base):
     description = Column(Text, nullable=False)
     length = Column(Integer, nullable=False)
     thumbnail_url = Column(String, nullable=False)
+    thumbnail_path  = Column(String, nullable=True)
     video_path = Column(String, nullable=False)
     audio_path = Column(String, nullable=False)
     language = Column(String, nullable=True)
