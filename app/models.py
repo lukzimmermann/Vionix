@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Float, Integer, String, DateTime, Enum, ForeignKey, Text, BigInteger
+    Boolean, Column, Float, Integer, String, DateTime, Enum, ForeignKey, Text, BigInteger
 )
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship, declarative_base
@@ -42,6 +42,7 @@ class YouTubeChannelSource(Source):
     url = Column(String, nullable=False)
     thumbnail_url = Column(String, nullable=False)
     thumbnail_path = Column(String, nullable=True)
+    auto_download = Column(Boolean, nullable=True, default=False)
 
     __mapper_args__ = {
         'polymorphic_identity': SourceType.YOUTUBE_CHANNEL

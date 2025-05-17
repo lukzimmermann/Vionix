@@ -2,19 +2,35 @@ import os
 from pathlib import Path
 import uuid
 import requests
-from pytubefix import Channel
+from pytubefix import YouTube, Channel
 from app.utils.database import Database
-from app.models import YouTubeChannelSource
+from app.models import Video, YouTubeChannelSource
 from minio.deleteobjects import DeleteObject
 from app.utils.minioStorage import MinioStorage, BUCKET
+from app.worker.proxy.proxy_manager import ProxyManager
 
 database = Database().get_session()
 minio_client = MinioStorage().get_client()
 temp_directory = "./temp/"
+proxy_manager = ProxyManager()
 
 class YoutubeChannel():
+    def get_new_video_urls(self) -> list[str]:
+        new_videos = []
+        channels_to_monitor = database.query(YouTubeChannelSource).where(YouTubeChannelSource.auto_download).all()
+
+        for channel_to_monitor in channels_to_monitor:
+            print(channel_to_monitor.name)
+            channel = Channel(channel_to_monitor.url, proxies=proxy_manager.get_next_proxy())
+
+            for video in channel.videos:
+                if not self.is_video_present(video.video_id):
+                    new_videos.append(video.watch_url)
+        
+        return new_videos
+
     def add_channel(self, channel_url) -> YouTubeChannelSource:
-        channel = Channel(channel_url)
+        channel = Channel(channel_url, proxies=proxy_manager.get_next_proxy())
         filename = uuid.uuid4()
 
         channel_source = YouTubeChannelSource(
@@ -93,3 +109,9 @@ class YoutubeChannel():
 
         except Exception as e:
             print("S3Error:", e)
+
+    def is_video_present(self, video_id: str):
+        video = database.query(Video).where(Video.external_id == video_id).first()
+        if video: 
+            return True
+        return False

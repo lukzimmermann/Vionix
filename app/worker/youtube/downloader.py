@@ -1,7 +1,7 @@
-import logging
 import os
 import uuid
 import ffmpeg
+import logging
 import requests
 from pathlib import Path
 from pytubefix import YouTube
@@ -25,6 +25,7 @@ class YoutubeDownloader():
 
     def download(self, video_url: str):
         filename = uuid.uuid4()
+        video_db_id = -1
         try:
             youtube_video = YouTube(video_url, proxies=proxy_manager.get_next_proxy())
 
@@ -53,7 +54,7 @@ class YoutubeDownloader():
             logger.debug(f"Final Video created of {youtube_video.video_id} - {youtube_video.title}")
             
             self.upload_video_and_audio(youtube_video.video_id, filename)
-            self.write_in_database(youtube_video, f"{filename}.mp4", f"{filename}.mp3", f"{filename}.jpg")
+            video_db_id = self.write_in_database(youtube_video, f"{filename}.mp4", f"{filename}.mp3", f"{filename}.jpg")
 
             logger.info(f"Video {youtube_video.video_id} - {youtube_video.title} successfully downloaded")
         
@@ -63,8 +64,9 @@ class YoutubeDownloader():
         finally:
             self.clean_up(youtube_video.video_id)
 
-        
+        return video_db_id
 
+        
     def is_video_present_in_db(self, video: YouTube) -> bool:
         db_video = database.query(Video).where(Video.external_id==video.video_id).first()
         if db_video:
@@ -157,6 +159,8 @@ class YoutubeDownloader():
         database.add(video_data)
         database.commit()
 
+        return video_data.id
+
     def upload_to_object_storage(self, file, filename: str):
         file_extension = file.name.split(".")[-1]
         with file.open("rb") as file_data:
@@ -190,6 +194,3 @@ class YoutubeDownloader():
                 file_path = os.path.join(self.__temp_directory__, filename)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
-
-y = YoutubeDownloader()
-y.download('https://www.youtube.com/watch?v=Dlsa9EBKDGI')

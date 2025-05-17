@@ -1,18 +1,38 @@
-from celery import Celery
-from time import sleep
-app = Celery("tasks", broker="redis://localhost:6379")
+from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+import time
 
-@app.task
-def process(x,y):
-    for i in range(100):
-        sleep(1)
-        print("Processing...")
-    return x+y
+class Scanner():
+    def __init__(self):
+        self.is_running = False
 
-def main():
-    print("Hello, world!")
+    def start_scan(self):
+        if not self.is_running:
+            try:
+                self.is_running = True
+                print(f"Start @ {datetime.now()}")
+                time.sleep(5)
+                print(f"End @ {datetime.now()}")
+            except Exception as e:
+                pass
+            finally: 
+                self.is_running = False
 
+scanner = Scanner()
 
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    scanner.start_scan,
+    trigger='cron',
+    minute='*',
+    # hour=2,
+    # minute=0,
+    next_run_time=datetime.now())
 
-if __name__ == "__main__":
-    main()
+scheduler.start()
+
+try:
+    while True:
+        time.sleep(0.1)
+except (KeyboardInterrupt, SystemExit):
+    scheduler.shutdown()
