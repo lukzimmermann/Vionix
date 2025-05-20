@@ -43,6 +43,7 @@ class YouTubeChannelSource(Source):
     thumbnail_url = Column(String, nullable=False)
     thumbnail_path = Column(String, nullable=True)
     auto_download = Column(Boolean, nullable=True, default=False)
+    is_public = Column(Boolean, nullable=True, default=False)
 
     __mapper_args__ = {
         'polymorphic_identity': SourceType.YOUTUBE_CHANNEL
@@ -115,7 +116,7 @@ class Chunk(Base):
     start = Column(Float, primary_key=True, nullable=False)
     end = Column(Float, nullable=False)
     text = Column(String, nullable=False)
-    embedding = Column(Vector(768), nullable=False)
+    embedding = Column(Vector(1536), nullable=False)
 
     video = relationship("Video", back_populates="chunks")
 

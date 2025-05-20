@@ -71,9 +71,6 @@ class ChunkCreator():
             chunks[-2].text += chunks[-1].text
             chunks.pop()
 
-        #if chunks[-1].end == chunks[-1].end:
-        #    chunks.pop()
-
         return chunks
     
     def create_new_chunk(self, video_id, start):

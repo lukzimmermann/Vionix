@@ -20,14 +20,17 @@ logger = get_logger('worker_logger', logging.DEBUG)
 
 
 class YoutubeDownloader():
-    def __init__(self):
+    def __init__(self, enable_proxy=False):
         self.__temp_directory__ = "./temp/"
+        self.enable_proxy = enable_proxy
 
     def download(self, video_url: str):
-        filename = uuid.uuid4()
+        audio_filename = uuid.uuid4()
+        video_filename = uuid.uuid4()
+        thumbnail_filename = uuid.uuid4()
         video_db_id = -1
         try:
-            youtube_video = YouTube(video_url, proxies=proxy_manager.get_next_proxy())
+            youtube_video = self.get_video_instance(video_url, self.enable_proxy)
 
             if self.is_video_present_in_db(youtube_video):
                 logger.info(f"Video ({youtube_video.title}) already exists")
@@ -53,19 +56,25 @@ class YoutubeDownloader():
 
             logger.debug(f"Final Video created of {youtube_video.video_id} - {youtube_video.title}")
             
-            self.upload_video_and_audio(youtube_video.video_id, filename)
-            video_db_id = self.write_in_database(youtube_video, f"{filename}.mp4", f"{filename}.mp3", f"{filename}.jpg")
+            self.upload_video_and_audio(youtube_video.video_id, audio_filename, video_filename, thumbnail_filename)
+            video_db_id = self.write_in_database(youtube_video, f"{video_filename}.mp4", f"{audio_filename}.mp3", f"{thumbnail_filename}.jpg")
 
             logger.info(f"Video {youtube_video.video_id} - {youtube_video.title} successfully downloaded")
         
         except Exception as e:
             logger.error(f"Error during download of video ({youtube_video.title})", exc_info=True)
-            self.clean_up_on_error(str(filename))
+            self.clean_up_on_error(str(video_filename))
+            self.clean_up_on_error(str(audio_filename))
+            self.clean_up_on_error(str(thumbnail_filename))
         finally:
             self.clean_up(youtube_video.video_id)
 
         return video_db_id
 
+    def get_video_instance(self, video_url: str, enable_proxy: bool) -> YouTube:
+        if enable_proxy:
+            return YouTube(video_url, proxies=proxy_manager.get_next_proxy())
+        return YouTube(video_url)
         
     def is_video_present_in_db(self, video: YouTube) -> bool:
         db_video = database.query(Video).where(Video.external_id==video.video_id).first()
@@ -119,14 +128,14 @@ class YoutubeDownloader():
 
         ffmpeg.output(video_input, audio_input, output_path, vcodec='copy', acodec='aac', strict='experimental', shortest=None).run()
 
-    def upload_video_and_audio(self, video_id: str, filename: str):
+    def upload_video_and_audio(self, video_id: str, audio_filename: str, video_filename: str, thumbnail_filename: str):
         final_video_path = Path(f"{self.__temp_directory__}{video_id}_final_video.mp4")
         audio_path = Path(f"{self.__temp_directory__}{video_id}_final_audio.mp3")
         thumbnail_path = Path(f"{self.__temp_directory__}{video_id}_thumbnail.jpg")
 
-        self.upload_to_object_storage(final_video_path, filename)
-        self.upload_to_object_storage(audio_path, filename)
-        self.upload_to_object_storage(thumbnail_path, filename)
+        self.upload_to_object_storage(final_video_path, video_filename)
+        self.upload_to_object_storage(audio_path, audio_filename)
+        self.upload_to_object_storage(thumbnail_path, thumbnail_filename)
 
     def download_thumbnail(self, video_id: str, thumbnail_url: str):
         response = requests.get(thumbnail_url)
@@ -194,3 +203,5 @@ class YoutubeDownloader():
                 file_path = os.path.join(self.__temp_directory__, filename)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
+
+

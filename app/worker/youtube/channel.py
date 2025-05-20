@@ -15,13 +15,16 @@ temp_directory = "./temp/"
 proxy_manager = ProxyManager()
 
 class YoutubeChannel():
+    def __init__(self, enable_proxy=False):
+        self.enable_proxy = enable_proxy
+        
     def get_new_video_urls(self) -> list[str]:
         new_videos = []
         channels_to_monitor = database.query(YouTubeChannelSource).where(YouTubeChannelSource.auto_download).all()
 
         for channel_to_monitor in channels_to_monitor:
             print(channel_to_monitor.name)
-            channel = Channel(channel_to_monitor.url, proxies=proxy_manager.get_next_proxy())
+            channel = self.get_channel_instance(channel_to_monitor.url, self.enable_proxy)
 
             for video in channel.videos:
                 if not self.is_video_present(video.video_id):
@@ -30,7 +33,7 @@ class YoutubeChannel():
         return new_videos
 
     def add_channel(self, channel_url) -> YouTubeChannelSource:
-        channel = Channel(channel_url, proxies=proxy_manager.get_next_proxy())
+        channel = self.get_channel_instance(channel_url, self.enable_proxy)
         filename = uuid.uuid4()
 
         channel_source = YouTubeChannelSource(
@@ -58,6 +61,12 @@ class YoutubeChannel():
             self.clean_up(channel.channel_id)
 
         return channel_source
+    
+    def get_channel_instance(self, channel_url: str, enable_proxy) -> Channel:
+        if enable_proxy:
+            return Channel(channel_url, proxies=proxy_manager.get_next_proxy())
+        return Channel(channel_url)
+
     
     def is_channel_present_in_db(self, channel: Channel) -> bool:
         db_channel = database.query(YouTubeChannelSource).where(YouTubeChannelSource.channel_id==channel.channel_id).first()

@@ -1,7 +1,7 @@
-import os
 from dotenv import load_dotenv
 from dataclasses import dataclass
 from app.utils.singleton import singleton
+from app.config import Settings
 
 load_dotenv()
 
@@ -15,7 +15,7 @@ class ProxyItem:
 @singleton
 class ProxyManager():
     def __init__(self):
-        self.__proxy_list_path__ = os.getenv('PROXY_LIST_PATH')
+        self.__proxy_list_path__ = Settings.PROXY_LIST_PATH
         
         with open(self.__proxy_list_path__, 'r') as file:
             self.proxies = [self.parse(line) for line in file.readlines()]
@@ -25,6 +25,7 @@ class ProxyManager():
 
     def get_next_proxy(self) -> str:
         self.current_index += 1
+        print("Current Proxy #", self.current_index)
 
         if self.current_index >= len(self.proxies):
             self.current_index = 0     
