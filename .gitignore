@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.production
 .venv
 playground
 proxy_list.txt
