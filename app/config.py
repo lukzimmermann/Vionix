@@ -1,14 +1,10 @@
 import os
 from dotenv import load_dotenv
 
-# Read ACTIVE_ENV from the shell environment (should be set outside python)
 ACTIVE_ENV = os.getenv("ACTIVE_ENV", "local")
-print("ACTIVE_ENV from OS env:", ACTIVE_ENV)
 
-# Load the corresponding .env file from project root (adjust path as needed)
 dotenv_path = os.path.join(os.path.dirname(__file__), f"../.env.{ACTIVE_ENV}")
-print("Loading env file:", dotenv_path)
-load_dotenv(dotenv_path=dotenv_path, override=True)  # do not override existing env vars
+load_dotenv(dotenv_path=dotenv_path, override=True)
 
 class Settings:
     ENV = os.getenv("ENV", ACTIVE_ENV)

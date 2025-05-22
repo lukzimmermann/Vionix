@@ -1,0 +1,11 @@
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.worker.main", "download"]
+    env_file:
+      - .env.production
+    environment:
+      - ACTIVE_ENV=production
+    restart: unless-stopped
