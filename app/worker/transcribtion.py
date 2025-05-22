@@ -13,7 +13,9 @@ logger = get_logger('worker_logger', logging.DEBUG)
 @singleton
 class Transcription():
     def __init__(self, model="medium"):
-        self.__model = whisper.load_model(model, device="cpu")
+        device = "cuda" if whisper.torch.cuda.is_available() else "cpu"
+        print(device)
+        self.__model = whisper.load_model(model, device=device)
         self.__database = Database().get_session()
         self.__minio_client = MinioStorage().get_client()
         self.__temp_directory = "./temp/"

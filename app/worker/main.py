@@ -1,7 +1,10 @@
 import time
+from app.models import Video
 from pytubefix.exceptions import BotDetection, AgeRestrictedError
 from app.worker.youtube.channel import YoutubeChannel
 from app.worker.youtube.downloader import YoutubeDownloader
+from app.utils.database import Database
+from app.worker.transcribtion import Transcription
 import argparse
 
 
@@ -50,6 +53,15 @@ def download_new_videos():
         time.sleep(120*60)
 
 def transcribe():
+    database = Database().get_session()
+
+    videos = database.query(Video).where(Video.transcription == None).all()
+    transcribe_manager = Transcription()
+
+    for video in videos:
+        print(video.title)
+        transcribe_manager.transcribe(video.id)
+
     print("Transcribing... (this is just a placeholder)")
 
 
